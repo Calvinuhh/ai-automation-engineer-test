@@ -1,0 +1,6 @@
+node_modules
+.agents/
+resources/
+.next/
+AGENTS.md
+.env
