@@ -5,9 +5,6 @@ import { createListicleSchema } from '@/lib/zod/schemas';
 import { enqueueJob } from '@/lib/redis/client';
 import { withLogging } from '@/lib/with-logging';
 import fs from 'fs/promises';
-import path from 'path';
-
-const RESEARCH_DATA_DIR = path.join(process.cwd(), '..', 'resources', 'research-data');
 
 async function createListicleHandler(request: Request) {
   const body = await request.json();
@@ -20,9 +17,8 @@ async function createListicleHandler(request: Request) {
     );
   }
 
-  const { productUrl, referenceUrl, researchFileName } = validation.data;
+  const { productUrl, referenceUrl, researchFilePath } = validation.data;
 
-  const researchFilePath = path.join(RESEARCH_DATA_DIR, researchFileName);
   try {
     await fs.access(researchFilePath);
   } catch {

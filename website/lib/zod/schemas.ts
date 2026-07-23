@@ -5,7 +5,7 @@ export const listicleStatusSchema = z.enum(['pending', 'completed', 'failed']);
 export const createListicleSchema = z.object({
   productUrl: z.url({ message: 'Invalid product URL' }).max(2048),
   referenceUrl: z.url({ message: 'Invalid reference URL' }).max(2048),
-  researchFileName: z.string().min(1, 'Research file name is required').max(500),
+  researchFilePath: z.string().min(1, 'Research file path is required').max(500),
 });
 
 export const n8nOutputSchema = z.object({

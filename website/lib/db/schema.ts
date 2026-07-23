@@ -9,6 +9,14 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const uploadedFiles = pgTable('uploaded_files', {
+  id: serial('id').primaryKey(),
+  sessionToken: varchar('session_token', { length: 255 }).notNull().unique(),
+  fileName: varchar('file_name', { length: 500 }).notNull(),
+  filePath: varchar('file_path', { length: 500 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const listicles = pgTable('listicles', {
   id: serial('id').primaryKey(),
   productUrl: varchar('product_url', { length: 2048 }).notNull(),

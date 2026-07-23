@@ -3,8 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
+import { DropZone } from '@/components/drop-zone';
 import { useCreateFormStore } from '@/lib/stores/createFormStore';
-import { useResearchFilesStore } from '@/lib/stores/researchFilesStore';
 
 export default function CreatePage() {
   const router = useRouter();
@@ -12,27 +12,50 @@ export default function CreatePage() {
   const {
     productUrl,
     referenceUrl,
-    researchFileName,
+    researchFilePath,
+    uploadedFileName,
+    uploadError,
+    uploading,
     isLoading,
     error,
+    sessionToken,
     setProductUrl,
     setReferenceUrl,
-    setResearchFileName,
+    setUploadedFileInfo,
+    setUploadError,
+    setUploading,
+    resetUpload,
     setLoading,
     setError,
     resetForm,
   } = useCreateFormStore();
 
-  const { availableFiles, fetchFiles } = useResearchFilesStore();
-
   useEffect(() => {
-    fetchFiles().then(() => {
-      const files = useResearchFilesStore.getState().availableFiles;
-      if (files.length > 0 && !researchFileName) {
-        setResearchFileName(files[0]);
-      }
+    const restoreSession = () => {
+      const token = useCreateFormStore.getState().sessionToken;
+      fetch(`/api/research-files?sessionToken=${encodeURIComponent(token)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.filePath && data.fileName) {
+            useCreateFormStore.getState().setUploadedFileInfo(data.filePath, data.fileName);
+          }
+        })
+        .catch(() => {});
+    };
+
+    if (useCreateFormStore.persist.hasHydrated()) {
+      restoreSession();
+      return;
+    }
+
+    const unsub = useCreateFormStore.persist.onFinishHydration(() => {
+      restoreSession();
     });
-  }, [fetchFiles, researchFileName, setResearchFileName]);
+
+    return () => {
+      unsub();
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +66,7 @@ export default function CreatePage() {
       const res = await fetch('/api/listicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productUrl, referenceUrl, researchFileName }),
+        body: JSON.stringify({ productUrl, referenceUrl, researchFilePath }),
       });
 
       const data = await res.json();
@@ -61,6 +84,8 @@ export default function CreatePage() {
       setLoading(false);
     }
   }
+
+  const isFormValid = productUrl && referenceUrl && researchFilePath && !uploading;
 
   return (
     <>
@@ -120,28 +145,19 @@ export default function CreatePage() {
             </div>
 
             <div>
-              <label
-                htmlFor="researchFile"
-                className="block text-sm font-medium text-zinc-700 mb-1.5"
-              >
+              <label className="block text-sm font-medium text-zinc-700 mb-1.5">
                 Product Research JSON
               </label>
-              <select
-                id="researchFile"
-                required
-                value={researchFileName}
-                onChange={(e) => setResearchFileName(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              >
-                {availableFiles.length === 0 && (
-                  <option value="">No research files available</option>
-                )}
-                {availableFiles.map((file) => (
-                  <option key={file} value={file}>
-                    {file}
-                  </option>
-                ))}
-              </select>
+              <DropZone
+                onFileUploaded={setUploadedFileInfo}
+                onError={setUploadError}
+                onUploadStart={() => setUploading(true)}
+                uploadedFileName={uploadedFileName}
+                uploadError={uploadError}
+                uploading={uploading}
+                onReset={resetUpload}
+                sessionToken={sessionToken}
+              />
               <p className="mt-1 text-xs text-zinc-500">
                 Deep product research file (positioning, features, audience, claims, FAQs).
               </p>
@@ -155,7 +171,7 @@ export default function CreatePage() {
 
             <button
               type="submit"
-              disabled={isLoading || availableFiles.length === 0}
+              disabled={isLoading || !isFormValid}
               className="w-full py-2.5 px-4 bg-zinc-900 text-white text-sm font-medium rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Creating...' : 'Create Listicle'}
