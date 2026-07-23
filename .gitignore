@@ -7,4 +7,5 @@ resources/
 .env
 .agents/
 .next/
+*.tsbuildinfo
 logs/

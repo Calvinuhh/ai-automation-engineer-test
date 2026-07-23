@@ -28,15 +28,23 @@ export async function GET(
     const ext = path.extname(fullPath).toLowerCase();
 
     const contentType =
-      ext === '.html' ? 'text/html' :
-      ext === '.css' ? 'text/css' :
-      ext === '.js' ? 'application/javascript' :
-      ext === '.json' ? 'application/json' :
-      ext === '.png' ? 'image/png' :
-      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
-      ext === '.gif' ? 'image/gif' :
-      ext === '.svg' ? 'image/svg+xml' :
-      'application/octet-stream';
+      ext === '.html'
+        ? 'text/html'
+        : ext === '.css'
+          ? 'text/css'
+          : ext === '.js'
+            ? 'application/javascript'
+            : ext === '.json'
+              ? 'application/json'
+              : ext === '.png'
+                ? 'image/png'
+                : ext === '.jpg' || ext === '.jpeg'
+                  ? 'image/jpeg'
+                  : ext === '.gif'
+                    ? 'image/gif'
+                    : ext === '.svg'
+                      ? 'image/svg+xml'
+                      : 'application/octet-stream';
 
     return new NextResponse(fileBuffer, {
       headers: {

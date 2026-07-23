@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
-export const listicleStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
+export const listicleStatusSchema = z.enum(['pending', 'completed', 'failed']);
 
 export const createListicleSchema = z.object({
-  productUrl: z.string().url('Invalid product URL'),
+  productUrl: z.url({ message: 'Invalid product URL' }).max(2048),
+  referenceUrl: z.url({ message: 'Invalid reference URL' }).max(2048),
+  researchFileName: z.string().min(1, 'Research file name is required').max(500),
 });
 
 export const n8nOutputSchema = z.object({
@@ -13,15 +15,16 @@ export const n8nOutputSchema = z.object({
     z.object({
       heading: z.string(),
       content: z.string(),
-      imageUrl: z.string().url().optional(),
-      videoUrl: z.string().url().optional(),
+      imageUrl: z.url().optional(),
+      videoUrl: z.url().optional(),
     })
   ),
   cta: z.object({
     text: z.string(),
-    url: z.string().url(),
+    url: z.url(),
   }),
 });
 
 export type CreateListicleInput = z.infer<typeof createListicleSchema>;
 export type N8nOutput = z.infer<typeof n8nOutputSchema>;
+export type ListicleStatus = z.infer<typeof listicleStatusSchema>;
