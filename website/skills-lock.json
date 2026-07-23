@@ -26,6 +26,30 @@
       "sourceType": "autoskills-registry",
       "computedHash": "82fb11a63fb1e35ee2469516ed02d54695f783115b1540c0e783197af4240a3a"
     },
+    "n8n-agents-official": {
+      "source": "n8n-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/n8n-agents-official/SKILL.md",
+      "computedHash": "f574b04ba92005565e8455440f5ece086e840a6c4ce0aa77619d4756b5042c41"
+    },
+    "n8n-credentials-and-security-official": {
+      "source": "n8n-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/n8n-credentials-and-security-official/SKILL.md",
+      "computedHash": "d7d056db2b09641da768aeb6fea6938384aafa20be0823b9d27af46029b17dc8"
+    },
+    "n8n-error-handling-official": {
+      "source": "n8n-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/n8n-error-handling-official/SKILL.md",
+      "computedHash": "3ab8d143dcba817ccc80d4d63ff6093499319b8aaf9563dc8acf454884426b25"
+    },
+    "n8n-node-configuration-official": {
+      "source": "n8n-io/skills",
+      "sourceType": "github",
+      "skillPath": "skills/n8n-node-configuration-official/SKILL.md",
+      "computedHash": "4f96ae5c985c8ce8f5bc358b35fecbc9c307207fab399e6db5380dd9e8b96934"
+    },
     "next-best-practices": {
       "source": "vercel-labs/next-skills",
       "sourceType": "autoskills-registry",

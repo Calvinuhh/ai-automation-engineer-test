@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
 import { listicles } from '@/lib/db/schema';
 import { createListicleSchema } from '@/lib/zod/schemas';
-import { enqueueJob } from '@/lib/redis/client';
 import { withLogging } from '@/lib/with-logging';
+import { processListicle } from '@/lib/pipeline';
 import fs from 'fs/promises';
 
 async function createListicleHandler(request: Request) {
@@ -37,9 +37,11 @@ async function createListicleHandler(request: Request) {
 
   const listicleId = result[0].id;
 
-  await enqueueJob(listicleId);
+  processListicle(listicleId).catch((err) => {
+    console.error('Background pipeline failed:', err);
+  });
 
-  return NextResponse.json({ success: true, id: listicleId }, { status: 201 });
+  return NextResponse.json({ success: true, id: listicleId, status: 'pending' }, { status: 201 });
 }
 
 export const POST = withLogging(createListicleHandler, '/api/listicles');
