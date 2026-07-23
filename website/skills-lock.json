@@ -41,10 +41,27 @@
       "sourceType": "autoskills-registry",
       "computedHash": "265833561c41038b4a626585b46186cff859b7f9b2254ae6b88d01648790a7b4"
     },
+    "playwright-best-practices": {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "sourceType": "autoskills-registry",
+      "computedHash": "dcc414410b81cfcc5c56490a7e450e664b11d170f3c336fe475c6e0a47def574"
+    },
     "react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "autoskills-registry",
       "computedHash": "502eb06700e2c3cb1bd7f710860528f72281320bd5171a2087b05a090b573dc1"
+    },
+    "redis-connections": {
+      "source": "redis/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/redis-connections/SKILL.md",
+      "computedHash": "650825cfc353cff566cf04523e79932a43a9ef4774e795473ee224377602e495"
+    },
+    "redis-core": {
+      "source": "redis/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/redis-core/SKILL.md",
+      "computedHash": "2c0aedf490d57dc8e5ac4d38b5b92b57ceae5ac92ccb4e1ce30c9a0c6f643e30"
     },
     "tailwind-css-patterns": {
       "source": "giuseppe-trisciuoglio/developer-kit",
@@ -55,6 +72,11 @@
       "source": "wshobson/agents",
       "sourceType": "autoskills-registry",
       "computedHash": "5ca0e177c6aaaba1889255691224daafdb7d71f317cc70bede1590d3907ded42"
+    },
+    "zod": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "aa8a97195b07763d37494b511f48be90979fd6826c031956c831cfc58f6a24b8"
     }
   }
 }

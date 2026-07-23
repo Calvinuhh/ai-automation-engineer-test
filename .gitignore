@@ -1,6 +1,10 @@
 node_modules
-.agents/
-resources/
-.next/
 AGENTS.md
+opencode.json
+generated/
+dev-logs/
+resources/
 .env
+.agents/
+.next/
+logs/

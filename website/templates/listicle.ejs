@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <style>
+    <%= styles %>
+  </style>
+</head>
+<body>
+  <main>
+    <h1><%= title %></h1>
+    <% if (subtitle) { %>
+      <p class="subtitle"><%= subtitle %></p>
+    <% } %>
+
+    <% sections.forEach(function(section) { %>
+      <section>
+        <h2><%= section.heading %></h2>
+        <p><%= section.content %></p>
+        <% if (section.imageUrl) { %>
+          <img src="<%= section.imageUrl %>" alt="<%= section.heading %>" />
+        <% } %>
+        <% if (section.videoUrl) { %>
+          <video src="<%= section.videoUrl %>" controls></video>
+        <% } %>
+      </section>
+    <% }); %>
+
+    <div class="cta">
+      <a href="<%= cta.url %>"><%= cta.text %></a>
+    </div>
+  </main>
+  <script>
+    <%= scripts %>
+  </script>
+</body>
+</html>
