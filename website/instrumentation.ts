@@ -1,13 +1,11 @@
-import 'dotenv/config';
-
 import { db } from '@/lib/db/client';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { hashPassword } from '@/lib/auth/hash';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '@/lib/auth/config';
 
-async function seedAdmin() {
-  console.log('Checking admin user...');
+export async function register() {
+  console.log('[Instrumentation] Checking admin user...');
 
   const existingUser = await db
     .select()
@@ -16,11 +14,11 @@ async function seedAdmin() {
     .limit(1);
 
   if (existingUser.length > 0) {
-    console.log('Admin user already exists. Skipping seed.');
+    console.log('[Instrumentation] Admin user already exists. Skipping seed.');
     return;
   }
 
-  console.log('Creating admin user...');
+  console.log('[Instrumentation] Creating admin user...');
   const passwordHash = await hashPassword(ADMIN_PASSWORD);
 
   await db.insert(users).values({
@@ -28,14 +26,5 @@ async function seedAdmin() {
     passwordHash,
   });
 
-  console.log('Admin user created successfully.');
+  console.log('[Instrumentation] Admin user created successfully.');
 }
-
-seedAdmin()
-  .catch((err) => {
-    console.error('Failed to seed admin user:', err);
-    process.exit(1);
-  })
-  .finally(() => {
-    process.exit(0);
-  });

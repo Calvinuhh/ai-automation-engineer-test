@@ -4,10 +4,10 @@ opencode.json
 generated/
 dev-logs/
 resources/
-.env
-.agents/
-.next/
-.playwright-mcp
+website/data/
 *.tsbuildinfo
 logs/
-website/data/
+.playwright-mcp
+.next/
+.env
+.agents/
