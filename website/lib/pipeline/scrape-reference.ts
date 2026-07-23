@@ -26,7 +26,8 @@ export async function scrapeReferencePage(
       'Loading reference page'
     );
 
-    await page.goto(referenceUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(referenceUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(2000);
 
     const headings = await page.$$eval('h1, h2, h3, h4, h5, h6', (els) =>
       els.map((el) => ({

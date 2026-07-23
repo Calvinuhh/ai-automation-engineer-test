@@ -19,7 +19,8 @@ export async function scrapeProductPage(
   try {
     logger.info({ type: 'pipeline', step: 'scrape-product', productUrl }, 'Loading product page');
 
-    await page.goto(productUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(2000);
 
     const title = await extractTitle(page);
     const description = await extractDescription(page);
