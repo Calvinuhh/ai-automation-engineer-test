@@ -66,7 +66,7 @@ export default function CreatePage() {
       const res = await fetch('/api/listicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productUrl, referenceUrl, researchFilePath }),
+        body: JSON.stringify({ productUrl, referenceUrl, sessionToken }),
       });
 
       const data = await res.json();

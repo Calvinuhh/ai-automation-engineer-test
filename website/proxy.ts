@@ -3,9 +3,16 @@ import type { NextRequest } from 'next/server';
 import { verifyJWT } from '@/lib/auth/jwt';
 import { COOKIE_NAME } from '@/lib/auth/config';
 
-const publicPaths = ['/', '/login', '/api/auth/login'];
+const publicPaths = [
+  '/',
+  '/login',
+  '/api/auth/login',
+  '/api/listicles/callback',
+  '/api/listicles/error',
+];
+const redirectAwayPaths = ['/', '/login'];
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow Next.js internal routes (static assets, images, etc.)
@@ -13,13 +20,26 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const token = request.cookies.get(COOKIE_NAME)?.value;
+
   if (publicPaths.includes(pathname)) {
+    if (redirectAwayPaths.includes(pathname) && token) {
+      const payload = await verifyJWT(token);
+      if (payload) {
+        const dashboardUrl = new URL('/dashboard', request.url);
+        return NextResponse.redirect(dashboardUrl);
+      }
+    }
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(COOKIE_NAME)?.value;
-
   if (!token) {
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const payload = await verifyJWT(token);
+  if (!payload) {
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }

@@ -5,7 +5,7 @@ export const listicleStatusSchema = z.enum(['pending', 'completed', 'failed']);
 export const createListicleSchema = z.object({
   productUrl: z.url({ message: 'Invalid product URL' }).max(2048),
   referenceUrl: z.url({ message: 'Invalid reference URL' }).max(2048),
-  researchFilePath: z.string().min(1, 'Research file path is required').max(500),
+  sessionToken: z.string().min(1, 'Session token is required').max(255),
 });
 
 export const n8nOutputSchema = z.object({
@@ -25,6 +25,14 @@ export const n8nOutputSchema = z.object({
   }),
 });
 
+export const n8nCallbackSchema = z.object({
+  listicleId: z.number(),
+  html: z.string().min(1),
+  status: z.enum(['completed', 'failed']),
+  errorMessage: z.string().optional(),
+});
+
 export type CreateListicleInput = z.infer<typeof createListicleSchema>;
 export type N8nOutput = z.infer<typeof n8nOutputSchema>;
+export type N8nCallbackInput = z.infer<typeof n8nCallbackSchema>;
 export type ListicleStatus = z.infer<typeof listicleStatusSchema>;

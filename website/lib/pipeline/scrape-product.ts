@@ -68,10 +68,22 @@ async function extractDescription(page: Page): Promise<string> {
 }
 
 async function extractPrice(page: Page): Promise<string> {
-  const selectors = ['[data-price]', '[itemprop="price"]', '.price', '.product-price'];
+  const selectors = [
+    'meta[property="product:price:amount"]',
+    'meta[itemprop="price"]',
+    '[data-price]',
+    '[data-product-price]',
+    'span.money',
+    '.price__current',
+    '.price',
+    '.product-price',
+    'span.price-item',
+  ];
   for (const sel of selectors) {
     try {
-      const text = await page.$eval(sel, (el) => el.textContent);
+      const el = await page.$(sel);
+      if (!el) continue;
+      const text = (await el.getAttribute('content')) || (await el.textContent());
       if (text) return text.trim();
     } catch {
       // continue
@@ -81,18 +93,60 @@ async function extractPrice(page: Page): Promise<string> {
 }
 
 async function extractImages(page: Page): Promise<string[]> {
-  const images = await page.$$eval('img', (els) =>
-    els
-      .map((el) => (el as HTMLImageElement).src)
+  const rawUrls: string[] = await page.$$eval('img', (els) =>
+    (els as HTMLImageElement[])
+      .map((el) => el.src)
       .filter((src) => src && !src.startsWith('data:') && !src.includes('icon'))
   );
 
-  return [...new Set(images)].slice(0, 10);
+  return [
+    ...new Set(rawUrls.filter((src) => !isThirdPartyImageUrl(src)).map(normalizeImageUrl)),
+  ].slice(0, 10);
+}
+
+function normalizeImageUrl(url: string): string {
+  const u = new URL(url);
+  u.searchParams.delete('width');
+  u.searchParams.delete('height');
+  u.searchParams.delete('crop');
+  return u.toString();
+}
+
+function isThirdPartyImageUrl(src: string): boolean {
+  const thirdPartyDomains = [
+    'flagcdn.com',
+    'googleapis.com',
+    'google.com',
+    'doubleclick.net',
+    'facebook.com',
+    'fbcdn.net',
+  ];
+  try {
+    const host = new URL(src).hostname;
+    return thirdPartyDomains.some((d) => host.includes(d));
+  } catch {
+    return false;
+  }
 }
 
 async function extractVideos(page: Page): Promise<string[]> {
   const videoSrcs = await page.$$eval('video source, video[src]', (els) =>
-    els.map((el) => (el as HTMLSourceElement | HTMLVideoElement).src || '').filter(Boolean)
+    els
+      .map((el) => {
+        const element = el as HTMLSourceElement | HTMLVideoElement;
+        const type = (element as HTMLSourceElement).type || '';
+        const src = element.src || '';
+        const isM3u8 = src.includes('.m3u8') || type === 'application/x-mpegURL';
+        const isReal =
+          (src.includes('.mp4') ||
+            src.includes('.webm') ||
+            src.includes('.mov') ||
+            type.startsWith('video/')) &&
+          !isM3u8;
+        return { src, type, isReal };
+      })
+      .filter((v) => v.src && v.isReal && !v.src.startsWith('blob:') && !v.src.startsWith('data:'))
+      .map((v) => v.src)
   );
 
   return [...new Set(videoSrcs)].slice(0, 3);

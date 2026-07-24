@@ -21,7 +21,7 @@ export const listicles = pgTable('listicles', {
   id: serial('id').primaryKey(),
   productUrl: varchar('product_url', { length: 2048 }).notNull(),
   referenceUrl: varchar('reference_url', { length: 2048 }).notNull(),
-  researchFilePath: varchar('research_file_path', { length: 500 }).notNull(),
+  sessionToken: varchar('session_token', { length: 255 }).notNull().default(''),
   status: listicleStatusEnum('status').notNull().default('pending'),
   outputPath: varchar('output_path', { length: 500 }),
   errorMessage: varchar('error_message', { length: 2000 }),

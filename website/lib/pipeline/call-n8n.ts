@@ -1,20 +1,36 @@
-import { n8nOutputSchema, type N8nOutput } from '@/lib/zod/schemas';
+import { SignJWT } from 'jose';
 import { logger } from '@/lib/logger';
 
-const N8N_WEBHOOK_URL = process.env.N8N_MAIN_URL ?? '';
+const N8N_BASE_URL = process.env.N8N_MAIN_URL;
+const N8N_PROD_URL = `${N8N_BASE_URL}/webhook/read-pipeline-data`;
+const JWT_SECRET = process.env.JWT_SECRET;
 
-export async function callN8n(payload: unknown): Promise<N8nOutput> {
-  if (!N8N_WEBHOOK_URL) {
+export async function callN8n(payload: unknown): Promise<void> {
+  if (!N8N_BASE_URL) {
     throw new Error('N8N_MAIN_URL environment variable is not set');
   }
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
 
-  logger.info({ type: 'pipeline', step: 'call-n8n' }, 'Sending payload to n8n');
+  logger.info(
+    { type: 'pipeline', step: 'call-n8n', payloadSize: JSON.stringify(payload).length },
+    'Building JWT and sending payload to n8n'
+  );
 
-  const res = await fetch(N8N_WEBHOOK_URL, {
+  const token = await new SignJWT({})
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('45m')
+    .sign(new TextEncoder().encode(JWT_SECRET));
+
+  const res = await fetch(N8N_PROD_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!res.ok) {
@@ -22,69 +38,5 @@ export async function callN8n(payload: unknown): Promise<N8nOutput> {
     throw new Error(`n8n returned ${res.status}: ${body}`);
   }
 
-  const raw = await res.json();
-
-  const validation = n8nOutputSchema.safeParse(raw);
-  if (!validation.success) {
-    logger.error(
-      {
-        type: 'pipeline',
-        step: 'call-n8n',
-        issues: validation.error.issues,
-        rawResponse: typeof raw === 'string' ? raw.slice(0, 500) : 'non-string',
-      },
-      'n8n response failed Zod validation'
-    );
-
-    const fallback = generateFallbackOutput(raw);
-    if (fallback) {
-      logger.warn({ type: 'pipeline', step: 'call-n8n' }, 'Using fallback output');
-      return fallback;
-    }
-
-    throw new Error('n8n response validation failed and no fallback available');
-  }
-
-  logger.info(
-    {
-      type: 'pipeline',
-      step: 'call-n8n',
-      title: validation.data.title,
-      sections: validation.data.sections.length,
-    },
-    'n8n response validated'
-  );
-
-  return validation.data;
-}
-
-function generateFallbackOutput(raw: unknown): N8nOutput | null {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    const obj = raw as Record<string, unknown>;
-    if (obj.title && typeof obj.title === 'string') {
-      return {
-        title: obj.title,
-        subtitle: typeof obj.subtitle === 'string' ? obj.subtitle : undefined,
-        sections: Array.isArray(obj.sections)
-          ? (obj.sections as Array<Record<string, unknown>>).map((s) => ({
-              heading: typeof s.heading === 'string' ? s.heading : '',
-              content: typeof s.content === 'string' ? s.content : '',
-              imageUrl: typeof s.imageUrl === 'string' ? s.imageUrl : undefined,
-              videoUrl: typeof s.videoUrl === 'string' ? s.videoUrl : undefined,
-            }))
-          : [{ heading: 'Overview', content: '' }],
-        cta:
-          obj.cta && typeof obj.cta === 'object'
-            ? (() => {
-                const c = obj.cta as Record<string, unknown>;
-                return {
-                  text: typeof c.text === 'string' ? c.text : 'Get Yours Now',
-                  url: typeof c.url === 'string' ? c.url : '',
-                };
-              })()
-            : { text: 'Get Yours Now', url: '' },
-      };
-    }
-  }
-  return null;
+  logger.info({ type: 'pipeline', step: 'call-n8n' }, 'Payload dispatched to n8n successfully');
 }

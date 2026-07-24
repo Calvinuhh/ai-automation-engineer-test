@@ -10,9 +10,10 @@ export interface DownloadedAssets {
 
 export async function downloadProductAssets(
   listicleId: number,
-  imageUrls: string[]
+  imageUrls: string[],
+  videoUrls: string[]
 ): Promise<DownloadedAssets> {
-  const imagesDir = path.join(
+  const assetsDir = path.join(
     process.cwd(),
     'generated',
     'listicles',
@@ -20,7 +21,7 @@ export async function downloadProductAssets(
     'assets'
   );
 
-  await fs.mkdir(imagesDir, { recursive: true });
+  await fs.mkdir(assetsDir, { recursive: true });
 
   const assetMap = new Map<string, string>();
   let downloaded = 0;
@@ -28,9 +29,9 @@ export async function downloadProductAssets(
   for (let i = 0; i < imageUrls.length; i++) {
     const url = imageUrls[i];
     try {
-      const ext = getExtension(url);
-      const fileName = `${i}${ext}`;
-      const destPath = path.join(imagesDir, fileName);
+      const ext = getImageExtension(url);
+      const fileName = `img_${i}${ext}`;
+      const destPath = path.join(assetsDir, fileName);
 
       const response = await fetch(url);
       if (!response.ok) continue;
@@ -49,18 +50,61 @@ export async function downloadProductAssets(
     }
   }
 
+  for (let i = 0; i < videoUrls.length; i++) {
+    const url = videoUrls[i];
+    try {
+      const ext = getVideoExtension(url);
+      const fileName = `video_${i}${ext}`;
+      const destPath = path.join(assetsDir, fileName);
+
+      const response = await fetch(url);
+      if (!response.ok) continue;
+
+      const contentLength = response.headers.get('content-length');
+      const minVideoSize = 102400;
+      if (contentLength && parseInt(contentLength, 10) < minVideoSize) {
+        logger.warn(
+          { type: 'pipeline', step: 'download-assets', url, contentLength },
+          'Video too small, likely not a real video, skipping'
+        );
+        continue;
+      }
+
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength < minVideoSize) {
+        logger.warn(
+          { type: 'pipeline', step: 'download-assets', url, byteLength: buffer.byteLength },
+          'Video too small after download, skipping'
+        );
+        continue;
+      }
+
+      await fs.writeFile(destPath, Buffer.from(buffer));
+
+      const relativePath = `assets/${fileName}`;
+      assetMap.set(url, relativePath);
+      downloaded++;
+    } catch (err) {
+      logger.warn(
+        { type: 'pipeline', step: 'download-assets', url, error: String(err) },
+        'Failed to download video, skipping'
+      );
+    }
+  }
+
   logger.info(
     {
       type: 'pipeline',
       step: 'download-assets',
-      total: imageUrls.length,
+      imageTotal: imageUrls.length,
+      videoTotal: videoUrls.length,
       downloaded,
-      imagesDir,
+      assetsDir,
     },
     'Asset download complete'
   );
 
-  return { assetMap, imagesDir, imageCount: downloaded };
+  return { assetMap, imagesDir: assetsDir, imageCount: downloaded };
 }
 
 export async function readResearchData(researchFilePath: string): Promise<Record<string, unknown>> {
@@ -85,13 +129,24 @@ export async function readResearchData(researchFilePath: string): Promise<Record
   return data as Record<string, unknown>;
 }
 
-function getExtension(url: string): string {
+function getImageExtension(url: string): string {
   try {
     const pathname = new URL(url).pathname;
     const ext = path.extname(pathname).toLowerCase();
-    if (['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext)) return ext;
+    if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'].includes(ext)) return ext;
   } catch {
     // ignore
   }
   return '.jpg';
+}
+
+function getVideoExtension(url: string): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const ext = path.extname(pathname).toLowerCase();
+    if (['.mp4', '.webm', '.mov'].includes(ext)) return ext;
+  } catch {
+    // ignore
+  }
+  return '.mp4';
 }

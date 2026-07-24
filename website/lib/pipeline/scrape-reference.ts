@@ -75,27 +75,47 @@ export async function scrapeReferencePage(
 
 async function extractCtaTexts(page: Page): Promise<string[]> {
   try {
-    const texts = await page.$$eval('a, button', (els) =>
-      els
+    const texts = await page.$$eval('a, button, [role="button"], .button, .btn', (els) =>
+      (els as HTMLElement[])
         .filter((el) => {
-          const html = el as HTMLElement;
-          const text = html.textContent?.toLowerCase() || '';
-          const cls = html.className?.toLowerCase() || '';
-          const id = html.id?.toLowerCase() || '';
+          if (el.offsetParent === null) return false;
+          if (el.querySelector('style, script')) return false;
+          const text = el.innerText?.toLowerCase() || '';
+          const cls = (el.className?.toString() || '').toLowerCase();
+          const id = el.id?.toLowerCase() || '';
+          const href = (el as HTMLAnchorElement).href?.toLowerCase() || '';
+          const style = (el.getAttribute('style') || '').toLowerCase();
           return (
             text.includes('buy') ||
             text.includes('shop') ||
             text.includes('get') ||
             text.includes('order') ||
             text.includes('claim') ||
+            text.includes('check out') ||
+            text.includes('try') ||
+            text.includes('claim') ||
+            text.includes('deal') ||
+            text.includes('offer') ||
+            text.includes('save') ||
+            text.includes('comprar') ||
+            text.includes('obtener') ||
+            text.includes('pedir') ||
+            text.includes('oferta') ||
+            text.includes('descuento') ||
             cls.includes('cta') ||
             cls.includes('btn') ||
+            cls.includes('button') ||
+            href.includes('/order') ||
+            href.includes('/checkout') ||
+            href.includes('/cart') ||
+            href.includes('/buy') ||
             id.includes('cta') ||
-            id.includes('btn')
+            id.includes('btn') ||
+            style.includes('cursor: pointer')
           );
         })
-        .map((el) => (el as HTMLElement).textContent?.trim() || '')
-        .filter(Boolean)
+        .map((el) => el.innerText?.trim() || '')
+        .filter((t) => t && t.length < 200)
     );
     return [...new Set(texts)].slice(0, 5);
   } catch {

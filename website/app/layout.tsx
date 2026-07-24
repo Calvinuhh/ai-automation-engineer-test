@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'WideStep Listicle Generator',
+  title: {
+    default: 'WideStep Listicle Generator',
+    template: '%s | WideStep',
+  },
   description: 'AI-powered listicle generator for WideStep products',
 };
 
