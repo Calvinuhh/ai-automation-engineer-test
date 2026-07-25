@@ -42,16 +42,41 @@ export async function POST(request: Request) {
 
   if (status === 'completed') {
     try {
-      const r2Key = getR2Key(listicleId, 'index.html');
+      const { cleanHtml, cssContent, jsContent } = splitAssets(html);
 
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: R2_BUCKET,
-          Key: r2Key,
-          Body: html,
-          ContentType: 'text/html',
-        })
-      );
+      const uploads = [
+        r2Client.send(
+          new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: getR2Key(listicleId, 'index.html'),
+            Body: cleanHtml,
+            ContentType: 'text/html',
+          })
+        ),
+        r2Client.send(
+          new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: getR2Key(listicleId, 'styles.css'),
+            Body: cssContent,
+            ContentType: 'text/css',
+          })
+        ),
+      ];
+
+      if (jsContent.trim()) {
+        uploads.push(
+          r2Client.send(
+            new PutObjectCommand({
+              Bucket: R2_BUCKET,
+              Key: getR2Key(listicleId, 'scripts.js'),
+              Body: jsContent,
+              ContentType: 'application/javascript',
+            })
+          )
+        );
+      }
+
+      await Promise.all(uploads);
 
       await db
         .update(listicles)
@@ -81,4 +106,26 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+function splitAssets(html: string): { cleanHtml: string; cssContent: string; jsContent: string } {
+  let cleanHtml = html;
+  let cssContent = '';
+  let jsContent = '';
+
+  // Extract inline <style> into separate CSS file
+  const styleMatch = cleanHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  if (styleMatch) {
+    cssContent = styleMatch[1].trim();
+    cleanHtml = cleanHtml.replace(styleMatch[0], '<link rel="stylesheet" href="styles.css">');
+  }
+
+  // Extract inline <script> (excluding external scripts with src=) into separate JS file
+  const scriptMatch = cleanHtml.match(/<script(?!.*\ssrc=)[^>]*>([\s\S]*?)<\/script>/i);
+  if (scriptMatch) {
+    jsContent = scriptMatch[1].trim();
+    cleanHtml = cleanHtml.replace(scriptMatch[0], '<script src="scripts.js"></script>');
+  }
+
+  return { cleanHtml, cssContent, jsContent };
 }
