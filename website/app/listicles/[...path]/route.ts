@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJWT } from '@/lib/auth/jwt';
 import { COOKIE_NAME } from '@/lib/auth/config';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client, R2_BUCKET } from '@/lib/r2/client';
 import path from 'path';
-import fs from 'fs/promises';
 
 export async function GET(
   request: NextRequest,
@@ -21,11 +22,22 @@ export async function GET(
 
   const resolvedParams = await params;
   const filePath = resolvedParams.path.join('/');
-  const fullPath = path.join(process.cwd(), 'generated', 'listicles', filePath);
+  const r2Key = `listicles/${filePath}`;
 
   try {
-    const fileBuffer = await fs.readFile(fullPath);
-    const ext = path.extname(fullPath).toLowerCase();
+    const response = await r2Client.send(
+      new GetObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: r2Key,
+      })
+    );
+
+    if (!response.Body) {
+      return new NextResponse('Not found', { status: 404 });
+    }
+
+    const buffer = Buffer.from(await response.Body.transformToByteArray());
+    const ext = path.extname(filePath).toLowerCase();
 
     const contentType =
       ext === '.html'
@@ -44,9 +56,13 @@ export async function GET(
                     ? 'image/gif'
                     : ext === '.svg'
                       ? 'image/svg+xml'
-                      : 'application/octet-stream';
+                      : ext === '.mp4'
+                        ? 'video/mp4'
+                        : ext === '.webm'
+                          ? 'video/webm'
+                          : response.ContentType || 'application/octet-stream';
 
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(buffer, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=3600',

@@ -1,10 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '@/lib/logger';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client, R2_BUCKET, getR2Key } from '@/lib/r2/client';
 
 export interface DownloadedAssets {
   assetMap: Map<string, string>;
-  imagesDir: string;
   imageCount: number;
 }
 
@@ -13,16 +14,6 @@ export async function downloadProductAssets(
   imageUrls: string[],
   videoUrls: string[]
 ): Promise<DownloadedAssets> {
-  const assetsDir = path.join(
-    process.cwd(),
-    'generated',
-    'listicles',
-    String(listicleId),
-    'assets'
-  );
-
-  await fs.mkdir(assetsDir, { recursive: true });
-
   const assetMap = new Map<string, string>();
   let downloaded = 0;
 
@@ -31,13 +22,22 @@ export async function downloadProductAssets(
     try {
       const ext = getImageExtension(url);
       const fileName = `img_${i}${ext}`;
-      const destPath = path.join(assetsDir, fileName);
+      const r2Key = getR2Key(listicleId, `assets/${fileName}`);
 
       const response = await fetch(url);
       if (!response.ok) continue;
 
-      const buffer = await response.arrayBuffer();
-      await fs.writeFile(destPath, Buffer.from(buffer));
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const contentType = response.headers.get('content-type') || mimeType(ext);
+
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: r2Key,
+          Body: buffer,
+          ContentType: contentType,
+        })
+      );
 
       const relativePath = `assets/${fileName}`;
       assetMap.set(url, relativePath);
@@ -55,7 +55,7 @@ export async function downloadProductAssets(
     try {
       const ext = getVideoExtension(url);
       const fileName = `video_${i}${ext}`;
-      const destPath = path.join(assetsDir, fileName);
+      const r2Key = getR2Key(listicleId, `assets/${fileName}`);
 
       const response = await fetch(url);
       if (!response.ok) continue;
@@ -70,7 +70,7 @@ export async function downloadProductAssets(
         continue;
       }
 
-      const buffer = await response.arrayBuffer();
+      const buffer = Buffer.from(await response.arrayBuffer());
       if (buffer.byteLength < minVideoSize) {
         logger.warn(
           { type: 'pipeline', step: 'download-assets', url, byteLength: buffer.byteLength },
@@ -79,7 +79,14 @@ export async function downloadProductAssets(
         continue;
       }
 
-      await fs.writeFile(destPath, Buffer.from(buffer));
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: r2Key,
+          Body: buffer,
+          ContentType: 'video/mp4',
+        })
+      );
 
       const relativePath = `assets/${fileName}`;
       assetMap.set(url, relativePath);
@@ -99,12 +106,11 @@ export async function downloadProductAssets(
       imageTotal: imageUrls.length,
       videoTotal: videoUrls.length,
       downloaded,
-      assetsDir,
     },
-    'Asset download complete'
+    'Asset upload to R2 complete'
   );
 
-  return { assetMap, imagesDir: assetsDir, imageCount: downloaded };
+  return { assetMap, imageCount: downloaded };
 }
 
 export async function readResearchData(researchFilePath: string): Promise<Record<string, unknown>> {
@@ -149,4 +155,16 @@ function getVideoExtension(url: string): string {
     // ignore
   }
   return '.mp4';
+}
+
+function mimeType(ext: string): string {
+  const mimes: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+  };
+  return mimes[ext] || 'application/octet-stream';
 }

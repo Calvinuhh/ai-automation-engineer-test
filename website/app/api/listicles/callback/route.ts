@@ -5,8 +5,8 @@ import { listicles } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { n8nCallbackSchema } from '@/lib/zod/schemas';
 import { logger } from '@/lib/logger';
-import fs from 'fs/promises';
-import path from 'path';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client, R2_BUCKET, getR2Key } from '@/lib/r2/client';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -42,15 +42,22 @@ export async function POST(request: Request) {
 
   if (status === 'completed') {
     try {
-      const outputDir = path.join(process.cwd(), 'generated', 'listicles', String(listicleId));
-      await fs.mkdir(outputDir, { recursive: true });
-      await fs.writeFile(path.join(outputDir, 'index.html'), html);
+      const r2Key = getR2Key(listicleId, 'index.html');
+
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: r2Key,
+          Body: html,
+          ContentType: 'text/html',
+        })
+      );
 
       await db
         .update(listicles)
         .set({
           status: 'completed',
-          outputPath: `generated/listicles/${listicleId}/`,
+          outputPath: `listicles/${listicleId}/`,
           updatedAt: new Date(),
         })
         .where(eq(listicles.id, listicleId));

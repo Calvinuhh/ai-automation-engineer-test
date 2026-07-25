@@ -83,6 +83,7 @@ export async function processListicle(listicleId: number): Promise<void> {
 
       await callN8n(n8nPayload);
 
+      // Cleanup: research JSON is consumed, uploaded_files row no longer needed
       await fs.unlink(researchFilePath).catch((err) => {
         logger.warn(
           { type: 'pipeline', step: 'cleanup', listicleId, error: String(err) },

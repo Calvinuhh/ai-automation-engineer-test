@@ -1,6 +1,47 @@
 import { Browser, Page } from 'playwright';
 import { logger } from '@/lib/logger';
 
+export interface ReferenceStyles {
+  body: {
+    fontFamily: string;
+    fontSize: string;
+    color: string;
+    backgroundColor: string;
+  };
+  h1: {
+    fontFamily: string;
+    fontSize: string;
+    fontWeight: string;
+    color: string;
+  };
+  h2: {
+    fontFamily: string;
+    fontSize: string;
+    fontWeight: string;
+    color: string;
+  };
+  p: {
+    fontFamily: string;
+    fontSize: string;
+    color: string;
+  };
+  cta: {
+    fontFamily: string;
+    fontSize: string;
+    fontWeight: string;
+    color: string;
+    backgroundColor: string;
+    borderRadius: string;
+    padding: string;
+    border: string;
+  };
+  container: {
+    maxWidth: string;
+    padding: string;
+  };
+  sectionBackgrounds: string[];
+}
+
 export interface ScrapedReference {
   structure: {
     headingCount: number;
@@ -11,6 +52,7 @@ export interface ScrapedReference {
     hasCta: boolean;
     ctaTexts: string[];
   };
+  styles: ReferenceStyles;
 }
 
 export async function scrapeReferencePage(
@@ -43,6 +85,7 @@ export async function scrapeReferencePage(
       .catch(() => false);
 
     const ctaTexts = await extractCtaTexts(page);
+    const styles = await extractStyles(page);
 
     const structure: ScrapedReference = {
       structure: {
@@ -54,6 +97,7 @@ export async function scrapeReferencePage(
         hasCta: ctaTexts.length > 0,
         ctaTexts,
       },
+      styles,
     };
 
     logger.info(
@@ -70,6 +114,98 @@ export async function scrapeReferencePage(
     return structure;
   } finally {
     await context.close();
+  }
+}
+
+async function extractStyles(page: Page): Promise<ReferenceStyles> {
+  try {
+    return await page.evaluate(() => {
+      const cs = (el: Element | null) => (el ? window.getComputedStyle(el) : null);
+
+      const body = document.querySelector('body');
+      const h1 = document.querySelector('h1');
+      const h2 = document.querySelector('h2');
+      const p = document.querySelector('p');
+      const cta = document.querySelector(
+        'a.button, .button, a[class*="btn"], [class*="cta-button"]'
+      );
+
+      const bodyStyle = cs(body);
+      const h1Style = cs(h1);
+      const h2Style = cs(h2);
+      const pStyle = cs(p);
+      const ctaStyle = cs(cta);
+
+      const ff = (s: CSSStyleDeclaration | null) =>
+        (s?.fontFamily || '').split(',')[0].replace(/['"]/g, '');
+
+      const containers = document.querySelectorAll('section, [class*="section"]');
+      const backgrounds = new Set<string>();
+      containers.forEach((el) => {
+        const bg = window.getComputedStyle(el).backgroundColor;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)') backgrounds.add(bg);
+      });
+
+      return {
+        body: {
+          fontFamily: ff(bodyStyle),
+          fontSize: bodyStyle?.fontSize || '16px',
+          color: bodyStyle?.color || '#333',
+          backgroundColor: bodyStyle?.backgroundColor || '#ffffff',
+        },
+        h1: {
+          fontFamily: ff(h1Style) || 'sans-serif',
+          fontSize: h1Style?.fontSize || '2rem',
+          fontWeight: h1Style?.fontWeight || '700',
+          color: h1Style?.color || '#222',
+        },
+        h2: {
+          fontFamily: ff(h2Style) || 'sans-serif',
+          fontSize: h2Style?.fontSize || '1.5rem',
+          fontWeight: h2Style?.fontWeight || '700',
+          color: h2Style?.color || '#333',
+        },
+        p: {
+          fontFamily: ff(pStyle) || 'sans-serif',
+          fontSize: pStyle?.fontSize || '1rem',
+          color: pStyle?.color || '#444',
+        },
+        cta: {
+          fontFamily: ff(ctaStyle) || 'sans-serif',
+          fontSize: ctaStyle?.fontSize || '1.2rem',
+          fontWeight: ctaStyle?.fontWeight || '700',
+          color: ctaStyle?.color || '#ffffff',
+          backgroundColor: ctaStyle?.backgroundColor || '#4caf50',
+          borderRadius: ctaStyle?.borderRadius || '8px',
+          padding: ctaStyle?.padding || '12px 32px',
+          border: ctaStyle?.border || 'none',
+        },
+        container: {
+          maxWidth: '928px',
+          padding: '0 20px',
+        },
+        sectionBackgrounds: [...backgrounds].slice(0, 4),
+      };
+    });
+  } catch {
+    return {
+      body: { fontFamily: 'sans-serif', fontSize: '16px', color: '#333', backgroundColor: '#fff' },
+      h1: { fontFamily: 'sans-serif', fontSize: '2rem', fontWeight: '700', color: '#222' },
+      h2: { fontFamily: 'sans-serif', fontSize: '1.5rem', fontWeight: '700', color: '#333' },
+      p: { fontFamily: 'sans-serif', fontSize: '1rem', color: '#444' },
+      cta: {
+        fontFamily: 'sans-serif',
+        fontSize: '1.2rem',
+        fontWeight: '700',
+        color: '#fff',
+        backgroundColor: '#4caf50',
+        borderRadius: '8px',
+        padding: '12px 32px',
+        border: 'none',
+      },
+      container: { maxWidth: '928px', padding: '0 20px' },
+      sectionBackgrounds: ['#ffffff'],
+    };
   }
 }
 

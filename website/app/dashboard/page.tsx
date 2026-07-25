@@ -63,10 +63,53 @@ function truncateUrl(url: string, max = 50) {
   return url.length > max ? url.slice(0, max) + '...' : url;
 }
 
+function ConfirmModal({
+  listicleId,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  listicleId: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+        <h3 className="text-lg font-semibold text-zinc-900 mb-2">Delete Listicle #{listicleId}</h3>
+        <p className="text-sm text-zinc-600 mb-6">
+          Are you sure you want to delete this listicle? This will remove all generated assets and
+          cannot be undone.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {loading && <Spinner />}
+            {loading ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [listicles, setListicles] = useState<ListicleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchListicles = useCallback(async () => {
     try {
@@ -104,6 +147,21 @@ export default function DashboardPage() {
       }
     };
   }, [hasPending, fetchListicles]);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/listicles/${deleteTarget}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setDeleteTarget(null);
+      await fetchListicles();
+    } catch {
+      setError('Failed to delete listicle');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <>
@@ -170,22 +228,46 @@ export default function DashboardPage() {
                       <td className="px-4 py-3">{statusBadge(l.status)}</td>
                       <td className="px-4 py-3 text-zinc-500">{formatDate(l.createdAt)}</td>
                       <td className="px-4 py-3 text-right">
-                        {l.status === 'completed' && l.outputPath && (
-                          <Link
-                            href={`/listicles/${l.id}/index.html`}
-                            className="text-sm text-zinc-900 underline hover:text-zinc-600"
+                        <div className="flex items-center justify-end gap-2">
+                          {l.status === 'completed' && l.outputPath && (
+                            <Link
+                              href={`/listicles/${l.id}/index.html`}
+                              className="text-sm text-zinc-900 underline hover:text-zinc-600"
+                            >
+                              View
+                            </Link>
+                          )}
+                          {l.status === 'failed' && l.errorMessage && (
+                            <span
+                              className="text-sm text-red-600 cursor-help"
+                              title={l.errorMessage}
+                            >
+                              Error
+                            </span>
+                          )}
+                          {l.status === 'pending' && (
+                            <span className="text-sm text-zinc-400">Processing...</span>
+                          )}
+                          <button
+                            onClick={() => setDeleteTarget(l.id)}
+                            className="text-sm text-zinc-400 hover:text-red-600 transition-colors ml-2"
+                            title="Delete listicle"
                           >
-                            View Preview
-                          </Link>
-                        )}
-                        {l.status === 'failed' && l.errorMessage && (
-                          <span className="text-sm text-red-600 cursor-help" title={l.errorMessage}>
-                            Error
-                          </span>
-                        )}
-                        {l.status === 'pending' && (
-                          <span className="text-sm text-zinc-400">Processing...</span>
-                        )}
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -195,6 +277,15 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {deleteTarget !== null && (
+        <ConfirmModal
+          listicleId={deleteTarget}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+          loading={deleting}
+        />
+      )}
     </>
   );
 }

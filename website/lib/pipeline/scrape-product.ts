@@ -69,10 +69,13 @@ async function extractDescription(page: Page): Promise<string> {
 
 async function extractPrice(page: Page): Promise<string> {
   const selectors = [
+    'meta[property="og:price:amount"]',
     'meta[property="product:price:amount"]',
     'meta[itemprop="price"]',
+    '.product-price-box',
     '[data-price]',
     '[data-product-price]',
+    '.product-sale-price',
     'span.money',
     '.price__current',
     '.price',
