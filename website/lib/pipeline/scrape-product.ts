@@ -13,30 +13,14 @@ export async function scrapeProductPage(
   browser: Browser,
   productUrl: string
 ): Promise<ScrapedProduct> {
-  const context = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 720 },
-    locale: 'en-US',
-    ...(process.env.PROXY_URL ? { proxy: { server: process.env.PROXY_URL } } : {}),
-  });
+  const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
     logger.info({ type: 'pipeline', step: 'scrape-product', productUrl }, 'Loading product page');
 
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      (window as any).chrome = { runtime: {} };
-      const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
-      window.navigator.permissions.query = (parameters: any) =>
-        parameters.name === 'notifications'
-          ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
-          : originalQuery(parameters);
-    });
-
-    await page.goto(productUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(4000);
+    await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(3000);
 
     const pageContent = await page.content();
     const imgElements = await page.$$('img');

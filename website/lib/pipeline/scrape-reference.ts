@@ -59,13 +59,7 @@ export async function scrapeReferencePage(
   browser: Browser,
   referenceUrl: string
 ): Promise<ScrapedReference> {
-  const context = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 720 },
-    locale: 'en-US',
-    ...(process.env.PROXY_URL ? { proxy: { server: process.env.PROXY_URL } } : {}),
-  });
+  const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
@@ -74,18 +68,8 @@ export async function scrapeReferencePage(
       'Loading reference page'
     );
 
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      (window as any).chrome = { runtime: {} };
-      const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
-      window.navigator.permissions.query = (parameters: any) =>
-        parameters.name === 'notifications'
-          ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
-          : originalQuery(parameters);
-    });
-
-    await page.goto(referenceUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(4000);
+    await page.goto(referenceUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(3000);
 
     const headings = await page.$$eval('h1, h2, h3, h4, h5, h6', (els) =>
       els.map((el) => ({
