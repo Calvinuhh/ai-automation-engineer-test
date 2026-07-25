@@ -14,18 +14,16 @@ COPY . .
 RUN pnpm build
 
 # Stage 2: Production runtime
-FROM node:24-slim AS runner
+# Use Playwright's official noble image as base: Ubuntu 24.04 + all Chromium system deps + browsers pre-installed
+FROM mcr.microsoft.com/playwright:v1.61.1-noble AS runner
 
 RUN corepack enable && corepack prepare pnpm@11 --activate
 
 WORKDIR /app
 
-# Production dependencies only
+# Production dependencies only (Playwright browsers already in base image)
 COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json ./
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
-
-# Install Chromium + system deps using the project's pinned Playwright version
-RUN pnpm exec playwright install --with-deps chromium
+RUN pnpm install --frozen-lockfile --prod
 
 # Copy built output and runtime assets
 COPY --from=builder /app/.next ./.next
@@ -42,7 +40,7 @@ COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/drizzle ./drizzle
 
 # Runtime directories (logs, uploads)
-RUN mkdir -p /app/logs /app/data/research /app/generated/listicles
+RUN mkdir -p /app/logs /app/data/research
 
 EXPOSE 3000
 

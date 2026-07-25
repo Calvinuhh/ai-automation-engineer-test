@@ -24,6 +24,16 @@ export async function scrapeProductPage(
   try {
     logger.info({ type: 'pipeline', step: 'scrape-product', productUrl }, 'Loading product page');
 
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      (window as any).chrome = { runtime: {} };
+      const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
+      window.navigator.permissions.query = (parameters: any) =>
+        parameters.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
+          : originalQuery(parameters);
+    });
+
     await page.goto(productUrl, { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(4000);
 

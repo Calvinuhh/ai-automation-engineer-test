@@ -54,9 +54,8 @@ export async function processListicle(listicleId: number): Promise<void> {
       .set({ status: 'pending', updatedAt: new Date() })
       .where(eq(listicles.id, listicleId));
 
-    const isProduction = process.env.NODE_ENV === 'production';
     const browser = await chromium.launch({
-      headless: isProduction,
+      headless: true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--no-sandbox',
