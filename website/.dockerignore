@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env
+.env.local
+logs/
+data/
+generated/
+*.tsbuildinfo
+next-env.d.ts
+.git/
+.gitignore
+.prettierrc
+.prettierignore
+README.md
+pnpm-store/
