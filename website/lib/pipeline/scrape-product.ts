@@ -13,14 +13,19 @@ export async function scrapeProductPage(
   browser: Browser,
   productUrl: string
 ): Promise<ScrapedProduct> {
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 720 },
+    locale: 'en-US',
+  });
   const page = await context.newPage();
 
   try {
     logger.info({ type: 'pipeline', step: 'scrape-product', productUrl }, 'Loading product page');
 
-    await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(2000);
+    await page.goto(productUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(4000);
 
     const title = await extractTitle(page);
     const description = await extractDescription(page);

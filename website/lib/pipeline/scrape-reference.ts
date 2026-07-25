@@ -59,7 +59,12 @@ export async function scrapeReferencePage(
   browser: Browser,
   referenceUrl: string
 ): Promise<ScrapedReference> {
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 720 },
+    locale: 'en-US',
+  });
   const page = await context.newPage();
 
   try {
@@ -68,8 +73,8 @@ export async function scrapeReferencePage(
       'Loading reference page'
     );
 
-    await page.goto(referenceUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(2000);
+    await page.goto(referenceUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(4000);
 
     const headings = await page.$$eval('h1, h2, h3, h4, h5, h6', (els) =>
       els.map((el) => ({

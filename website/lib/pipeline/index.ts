@@ -57,6 +57,11 @@ export async function processListicle(listicleId: number): Promise<void> {
     const isProduction = process.env.NODE_ENV === 'production';
     const browser = await chromium.launch({
       headless: isProduction,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+      ],
     });
     try {
       const productData = await scrapeProductPage(browser, listicle.productUrl);
