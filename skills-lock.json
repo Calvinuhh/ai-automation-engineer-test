@@ -70,18 +70,6 @@
       "sourceType": "autoskills-registry",
       "computedHash": "502eb06700e2c3cb1bd7f710860528f72281320bd5171a2087b05a090b573dc1"
     },
-    "redis-connections": {
-      "source": "redis/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/redis-connections/SKILL.md",
-      "computedHash": "650825cfc353cff566cf04523e79932a43a9ef4774e795473ee224377602e495"
-    },
-    "redis-core": {
-      "source": "redis/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/redis-core/SKILL.md",
-      "computedHash": "2c0aedf490d57dc8e5ac4d38b5b92b57ceae5ac92ccb4e1ce30c9a0c6f643e30"
-    },
     "tailwind-css-patterns": {
       "source": "giuseppe-trisciuoglio/developer-kit",
       "sourceType": "autoskills-registry",
