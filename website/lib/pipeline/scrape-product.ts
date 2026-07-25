@@ -37,6 +37,21 @@ export async function scrapeProductPage(
     await page.goto(productUrl, { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(4000);
 
+    const pageContent = await page.content();
+    const imgElements = await page.$$('img');
+    const pageTitle = await page.title();
+    logger.info(
+      {
+        type: 'pipeline',
+        step: 'scrape-product',
+        htmlLength: pageContent.length,
+        htmlSnippet: pageContent.substring(0, 600),
+        imgTagCount: imgElements.length,
+        pageTitle,
+      },
+      'Debug: page content after load'
+    );
+
     const title = await extractTitle(page);
     const description = await extractDescription(page);
     const price = await extractPrice(page);
