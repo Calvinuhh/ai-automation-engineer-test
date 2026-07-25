@@ -18,14 +18,14 @@ FROM node:24-slim AS runner
 
 RUN corepack enable && corepack prepare pnpm@11 --activate
 
-# Install Chromium + system deps for Playwright scraping at runtime
-RUN npx playwright install --with-deps chromium
-
 WORKDIR /app
 
 # Production dependencies only
 COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+# Install Chromium + system deps using the project's pinned Playwright version
+RUN pnpm exec playwright install --with-deps chromium
 
 # Copy built output and runtime assets
 COPY --from=builder /app/.next ./.next
