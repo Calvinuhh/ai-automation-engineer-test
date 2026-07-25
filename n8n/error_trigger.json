@@ -1,0 +1,125 @@
+{
+  "name": "Error Trigger Listicles Agents",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "cbc43a1a-4f4d-451f-987a-b614f7cc675e",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "execution",
+        "operation": "get",
+        "executionId": "={{ $json.execution.id }}",
+        "options": {
+          "activeWorkflows": true
+        },
+        "requestOptions": {}
+      },
+      "id": "23689048-6e90-4d19-a66e-3a6071c919f7",
+      "name": "n8n: Get Execution",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [224, 0],
+      "credentials": {
+        "n8nApi": {
+          "id": "Y4tU9KMAjhnVqYSH",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract listicleId and auth token from the failed execution data\nconst execData = $input.first().json;\n\n// Navigate n8n execution data structure to find webhook input\nlet listicleId = 0;\nlet authHeader = '';\nlet errorMessage = 'Unknown n8n error';\nlet lastNode = 'Unknown node';\n\ntry {\n  // Get webhook node data from the execution\n  const runData = execData.runData || execData.data?.resultData?.runData || {};\n  const webhookKey = Object.keys(runData).find(k => k.toLowerCase().includes('webhook'));\n  \n  if (webhookKey && runData[webhookKey]?.[0]?.data?.main?.[0]?.[0]?.json) {\n    const webhookInput = runData[webhookKey][0].data.main[0][0].json;\n    \n    // Extract listicleId from body\n    if (webhookInput.body?.listicleId) {\n      listicleId = webhookInput.body.listicleId;\n    }\n    \n    // Extract original Authorization header\n    if (webhookInput.headers?.authorization) {\n      authHeader = webhookInput.headers.authorization;\n    }\n  }\n  \n  // Get error info from the execution\n  const execError = execData.error || execData.data?.resultData?.error || {};\n  errorMessage = execError.message || execError.description || errorMessage;\n  \n  // Try to get lastNodeExecuted from the error data\n  if (execData.lastNodeExecuted) {\n    lastNode = execData.lastNodeExecuted;\n  }\n} catch (e) {\n  // Fallback: use what we can from the Error Trigger\n  const triggerData = $('Error Trigger').first().json;\n  if (triggerData.execution?.error?.message) {\n    errorMessage = triggerData.execution.error.message;\n  }\n  if (triggerData.execution?.lastNodeExecuted) {\n    lastNode = triggerData.execution.lastNodeExecuted;\n  }\n}\n\n// Derive error endpoint URL from the callback URL pattern\nlet errorUrl = '';\ntry {\n  const webhookKey = Object.keys(execData.runData || execData.data?.resultData?.runData || {}).find(k => k.toLowerCase().includes('webhook'));\n  if (webhookKey && execData.runData?.[webhookKey]?.[0]?.data?.main?.[0]?.[0]?.json?.body?.callbackUrl) {\n    errorUrl = execData.runData[webhookKey][0].data.main[0][0].json.body.callbackUrl.replace('/callback', '/error');\n  } else if (execData.data?.resultData?.runData?.[webhookKey]?.[0]?.data?.main?.[0]?.[0]?.json?.body?.callbackUrl) {\n    errorUrl = execData.data.resultData.runData[webhookKey][0].data.main[0][0].json.body.callbackUrl.replace('/callback', '/error');\n  }\n} catch (e) {\n  // Ignore, errorUrl stays empty\n}\n\nreturn [{\n  json: {\n    listicleId: listicleId,\n    errorMessage: errorMessage.slice(0, 2000),\n    lastNodeExecuted: lastNode,\n    errorUrl: errorUrl,\n    authHeader: authHeader\n  }\n}];\n"
+      },
+      "id": "00528c17-4024-4a04-ab42-d3620a61c43b",
+      "name": "Code: Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [448, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.errorUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authHeader }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { listicleId: $json.listicleId, errorMessage: $json.errorMessage, lastNodeExecuted: $json.lastNodeExecuted } }}",
+        "options": {}
+      },
+      "id": "e7a987e8-0f45-4247-a1ed-bd6785de36ae",
+      "name": "HTTP: Notify Next.js",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [672, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "n8n: Get Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "n8n: Get Execution": {
+      "main": [
+        [
+          {
+            "node": "Code: Extract Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Extract Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Notify Next.js",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "fbdec8ae-f72f-41f7-9958-ba95387741a6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "54ddd6b27df24606d93684ba44ab40cb69de50bc8291eec612de33b1c29b20d2"
+  },
+  "nodeGroups": [],
+  "id": "uxsqXx9AQhBBBqoh",
+  "tags": []
+}

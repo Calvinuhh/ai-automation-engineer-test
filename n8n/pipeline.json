@@ -1,0 +1,357 @@
+{
+  "name": "Listicle Agents",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "read-pipeline-data",
+        "authentication": "jwtAuth",
+        "options": {
+          "ignoreBots": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-400, -144],
+      "id": "e2d369e8-bc5a-4ed7-96dd-4de445aaf5a4",
+      "name": "Webhook",
+      "webhookId": "1cffd335-ccd6-4518-8db1-eb5144d5f0d5",
+      "credentials": {
+        "jwtAuth": {
+          "id": "5HzEk0IMVtmiaHAC",
+          "name": "JWT_SECRET Listicle Creator"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.research }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a product research analyst. Synthesize the deep research JSON into actionable insights for a listicle copywriter. Return ONLY the structured JSON. DO NOT wrap in markdown code blocks. DO NOT include any prose.",
+          "maxIterations": 2
+        }
+      },
+      "id": "d3b43a11-9047-43ae-8281-dbdcf680cb22",
+      "name": "Agent 1: Research Synthesizer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [-176, -144]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ '### RESEARCH SYNTHESIS ###\\n' + JSON.stringify($json.output, null, 2) + '\\n\\n### PRODUCT ###\\nTitle: ' + $('Webhook').first().json.body.product.title + '\\nPrice: ' + $('Webhook').first().json.body.product.price + '\\n\\n### REFERENCE STRUCTURE (headings to mimic) ###\\n' + JSON.stringify($('Webhook').first().json.body.reference.headings.slice(0, 12), null, 2) }}",
+        "options": {
+          "systemMessage": "You are a direct-response copywriter. You will receive research insights about a product, the product title and price, and the heading structure from a reference listicle page. Write a complete listicle with the same number of sections and similar heading hierarchy as the reference. Adapt all content to the product. Use the research insights to write benefit-driven, conversion-focused copy. Output your response as a valid JSON object with these fields: \"title\" (string), \"subtitle\" (string, optional), \"sections\" (array of 6-14 objects, each with \"heading\" and \"content\" strings), and \"cta\" (object with \"text\" and \"url\" strings). Return ONLY the raw JSON. DO NOT wrap in markdown code blocks. DO NOT include prose.\n\nExpected output format example:\n{\n  \"title\": \"The Search for the Perfect Flat Ends Here\",\n  \"subtitle\": \"Why thousands of women are switching to WideStep\",\n  \"sections\": [\n    {\n      \"heading\": \"The Problem with Conventional Flats\",\n      \"content\": \"For too long, women have endured pinching, blisters, and foot fatigue in the name of style. Most flats are designed with narrow toe boxes that force your toes into unnatural positions, causing pain and long-term foot problems.\"\n    },\n    {\n      \"heading\": \"A Revolutionary Toe Box Design\",\n      \"content\": \"The WideStep Elora features a 40% wider anatomical toe box that allows your toes to spread naturally. This proven design reduces pressure points, eliminates pinching, and provides relief for bunions and wide feet.\"\n    }\n  ],\n  \"cta\": {\n    \"text\": \"Get Your WideStep Elora Today for Just $89.00!\",\n    \"url\": \"https://getwidestep.com/products/widestep-elora-bogo\"\n  }\n}",
+          "maxIterations": 2
+        }
+      },
+      "id": "55e1bf8f-2f66-4430-b57f-63c09b55ff73",
+      "name": "Agent 2: Content Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [176, -144]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assign images and videos from assetMap to listicle sections\n// IMPORTANT: Force cta.url to be the product URL from instructions (LLMs invent URLs)\nconst output = $input.first().json.output || $input.first().json;\nconst sections = output.sections || [];\nconst assetMap = $(\"Webhook\").first().json.body.assetMap || {};\nconst productUrl = $(\"Webhook\").first().json.body.instructions.ctaUrl;\n\nconst images = Object.entries(assetMap).filter(([url]) => {\n  const lower = url.toLowerCase();\n  return lower.includes('.jpg') || lower.includes('.jpeg') || lower.includes('.png') || lower.includes('.webp') || lower.includes('.gif') || lower.includes('.svg');\n});\nconst videos = Object.entries(assetMap).filter(([url]) => {\n  const lower = url.toLowerCase();\n  return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');\n});\n\nsections.forEach((section, i) => {\n  if (i < images.length) {\n    section.imageUrl = images[i][1];\n  }\n  if (i < videos.length) {\n    section.videoUrl = videos[i][1];\n  }\n});\n\nif (output.cta) {\n  output.cta.url = productUrl;\n}\n\noutput.sections = sections;\nreturn { json: output };\n"
+      },
+      "id": "d27c83e9-6438-4bdc-93ee-e68d261f9034",
+      "name": "Code: Asset Assigner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -144]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json.output || $json) + '\\n\\n### REFERENCE STYLES TO REPLICATE ###\\nUse these exact CSS properties for the corresponding elements:\\n' + JSON.stringify($('Webhook').first().json.body.reference.styles, null, 2) }}",
+        "options": {
+          "systemMessage": "You are a frontend developer. Generate a complete, standalone, responsive HTML page for a listicle. Focus on clean semantic structure, proper heading hierarchy, and well-organized sections. Use the section data provided: include imageUrl as <img> tags and videoUrl as <video controls muted playsinline> tags when present. Include inline CSS for basic layout (max-width 928px, centered, responsive). Do NOT spend effort on premium styling. Output ONLY the raw HTML document. Do NOT wrap in JSON. Do NOT wrap in markdown. Do NOT include prose.",
+          "maxIterations": 2
+        }
+      },
+      "id": "b6a87839-3155-4633-a10c-4d840fa6ff6b",
+      "name": "Agent 4: HTML Generator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [1104, -144]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook').first().json.body.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Webhook').first().json.headers.authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { listicleId: $('Webhook').item.json.body.listicleId, html: $json.output || $json.html, status: \"completed\" } }}",
+        "options": {}
+      },
+      "id": "45db0ec0-ad35-4873-8ff1-961fc2bc1836",
+      "name": "HTTP: Callback to Next.js",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1808, -144]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $input.first().json.output || $input.first().json.html || ($input.first().json.output && typeof $input.first().json.output === 'string' ? $input.first().json.output : '') }}",
+        "options": {
+          "systemMessage": "You are a frontend stylist and HTML expert. You will receive a raw HTML page for a listicle product landing page. Your job: (1) Fix any HTML syntax errors or structural issues. (2) Enhance it with premium, visually rich CSS styling. Apply beautiful typography (Google Fonts like Barlow and Gilroy via import are welcome), gradient backgrounds, card-like sections with shadows, alternating section colors, a polished CTA button with hover effects, decorative elements, and spacing that feels professional. Reference the style guide for color palette. Keep ALL content, image tags, video tags, link tags, and structure intact. Output ONLY the complete, valid HTML document. Do NOT wrap in markdown code blocks. Do NOT include prose or explanations.",
+          "maxIterations": 2
+        }
+      },
+      "id": "4f765d11-5a76-4076-b6c0-32e9ab3950a4",
+      "name": "Agent 5: Styler",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [1456, -144]
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-5.6-luna",
+        "options": {}
+      },
+      "id": "3fe2f016-f62b-45a4-bdd9-3e295d33fa71",
+      "name": "GPT 5.6 Luna",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [-160, 80],
+      "credentials": {
+        "openRouterApi": {
+          "id": "VLmbJOdriJzlkOlA",
+          "name": "OpenRouter calvin.uhh@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "minimax/minimax-m3",
+        "options": {}
+      },
+      "id": "fb52b144-c0fa-488e-b7bf-ec41839bff53",
+      "name": "MiniMax M3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [544, 80],
+      "credentials": {
+        "openRouterApi": {
+          "id": "VLmbJOdriJzlkOlA",
+          "name": "OpenRouter calvin.uhh@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"subtitle\":{\"type\":\"string\"},\"sections\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"heading\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"heading\",\"content\"]},\"minItems\":6,\"maxItems\":14},\"cta\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"url\":{\"type\":\"string\"}},\"required\":[\"text\",\"url\"]}},\"required\":[\"title\",\"sections\",\"cta\"]}"
+      },
+      "id": "a36dbd50-38cd-4bf6-a5d1-59ff4347e2ca",
+      "name": "Parser 2",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [672, 80]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"topClaims\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"maxItems\": 10\n    },\n    \"uniqueMechanism\": { \"type\": \"string\" },\n    \"topPainPoints\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"maxItems\": 5\n    },\n    \"idealCustomer\": { \"type\": \"string\" },\n    \"toneNotes\": { \"type\": \"string\" }\n  },\n  \"required\": [\"topClaims\", \"uniqueMechanism\", \"topPainPoints\", \"idealCustomer\"]\n}\n"
+      },
+      "id": "3ad6491f-ab23-4520-b33f-7d5439b6db52",
+      "name": "Parser 1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [-32, 80]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a JSON validator and cleaner. You will receive JSON output from a copywriter. Your job: clean the JSON - fix any formatting issues, unescape strings, remove markdown wrappers if present. Then validate it matches the required schema. Output ONLY the cleaned, valid JSON. DO NOT wrap in markdown. DO NOT include prose. DO NOT change the content.\n\nExpected output format example:\n{\n  \"title\": \"The Search for the Perfect Flat Ends Here\",\n  \"subtitle\": \"Why thousands of women are switching to WideStep\",\n  \"sections\": [\n    {\n      \"heading\": \"The Problem with Conventional Flats\",\n      \"content\": \"For too long, women have endured pinching, blisters, and foot fatigue...\"\n    }\n  ],\n  \"cta\": {\n    \"text\": \"Get Your WideStep Elora Today!\",\n    \"url\": \"https://getwidestep.com/products/widestep-elora-bogo\"\n  }\n}",
+          "maxIterations": 2
+        }
+      },
+      "id": "72ef6b12-a517-4853-a7ec-d0a22936dfdc",
+      "name": "Agent 3: JSON Refiner",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [528, -144]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Agent 1: Research Synthesizer": {
+      "main": [
+        [
+          {
+            "node": "Agent 2: Content Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Asset Assigner": {
+      "main": [
+        [
+          {
+            "node": "Agent 4: HTML Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Agent 1: Research Synthesizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 2: Content Writer": {
+      "main": [
+        [
+          {
+            "node": "Agent 3: JSON Refiner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 5: Styler": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Callback to Next.js",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT 5.6 Luna": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 1: Research Synthesizer",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Agent 2: Content Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MiniMax M3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 4: HTML Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Agent 3: JSON Refiner",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Agent 5: Styler",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser 2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agent 3: JSON Refiner",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser 1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agent 1: Research Synthesizer",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 3: JSON Refiner": {
+      "main": [
+        [
+          {
+            "node": "Code: Asset Assigner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 4: HTML Generator": {
+      "main": [
+        [
+          {
+            "node": "Agent 5: Styler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 1800,
+    "errorWorkflow": "uxsqXx9AQhBBBqoh"
+  },
+  "versionId": "26f1d6cd-0eaf-4e56-bf91-c5bc54fd654d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "54ddd6b27df24606d93684ba44ab40cb69de50bc8291eec612de33b1c29b20d2"
+  },
+  "nodeGroups": [],
+  "id": "B3xxQl6K1vyEaftY",
+  "tags": []
+}
